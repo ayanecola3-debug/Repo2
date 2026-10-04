@@ -1,0 +1,33 @@
+.cake-scene {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 20px 0;
+}
+
+.celebration-glow {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(244, 163, 189, 0.4) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.cake-hint {
+  margin-top: 30px;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.remaining-count {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+  opacity: 0.7;
+}

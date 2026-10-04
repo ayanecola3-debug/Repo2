@@ -1,9 +1,268 @@
 'use client';
-import {useEffect,useState} from 'react';
-type Data={date:string;messages:string[];letter:string;wishes:string[];photos:string[]};
-export default function Birthday({params}:{params:Promise<{id:string}>}){const [id,I]=useState(''),[d,D]=useState<Data|null>(null),[step,S]=useState(-1),[wish,W]=useState(0),[err,E]=useState(false),[bloom,BL]=useState(false);
-useEffect(()=>{params.then(p=>I(p.id))},[params]);useEffect(()=>{if(!id)return;fetch(`/api/experience/${id}`).then(r=>r.ok?r.json():Promise.reject()).then(D).catch(()=>E(true))},[id]);
-if(err)return <main className="recipient"><div className="recipientcard"><div className="heroheart">♡</div><h1>Oh, this link wandered off.</h1><p>This birthday surprise may have expired or the link may be incorrect.</p></div></main>;
-if(!d)return <main className="recipient"><div className="loading">♥<p>Unwrapping a little surprise…</p></div></main>;
-const last=d.messages.length+4,next=()=>{window.scrollTo({top:0,behavior:'smooth'});S(s=>Math.min(s+1,last))};const src=(p:string)=>p.startsWith('data:')?p:`/api/photo/${p}`;const nums=['Two','Three','Four','Five','Six'];
-return <main className={`recipient ${step>=d.messages.length+3?'finalbg':''}`}><div className="recipientbar"><span className="brand"><span className="brandmark">♥</span> bloom<span className="brandlight">day</span></span><span>{step<0?'A LITTLE SURPRISE':'MADE JUST FOR YOU'} <b>♥</b></span></div><div className="recipientcard">{step<0?<><div className="recipientart">💌</div><div className="eyebrow">SOMETHING SPECIAL IS HERE</div><h1>Hey, birthday<br/><em>star.</em> ✦</h1><p>Someone put a little love together, just for you. Ready to open it?</p><button className="primary" onClick={next}>Open your surprise ♥</button></>:step<4?<><div className="eyebrow">A LITTLE NOTE FOR YOU · 0{step+1}/04</div><div className="recipientart">💗</div><h1>{['One thing to remember…','A tiny happy thought…','A little appreciation…','A wish for you…'][step]}</h1><blockquote className="message">{d.messages[step]}</blockquote><button className="primary" onClick={next}>Next little note →</button></>:step===4?<><div className="eyebrow">FROM THE HEART</div><h1>A letter, <em>for you.</em></h1><div className="letter">{d.letter}</div><button className="primary" onClick={next}>Keep going ♥</button></>:step===5?<><div className="eyebrow">A LITTLE DREAM FOR YOU</div><h1>{nums[d.wishes.length-2]||d.wishes.length} little <em>wishes.</em></h1><p>Choose a wish and keep it close. Good things are meant for you.</p><div className="wishgrid">{d.wishes.map((x,i)=><button className={`wish ${wish===i?'selected':''}`} onClick={()=>W(i)} key={i}><span>✦</span>{x}</button>)}</div><button className="primary" onClick={next}>Continue →</button></>:step===6?<><div className="eyebrow">OUR MEMORIES ♥</div><h1>Little moments, <em>big love.</em></h1><p>Some moments stay forever in our hearts.</p><div className="memorygrid">{d.photos.map((p,i)=><div className="memory" key={i}><img src={src(p)} alt={`Memory ${i+1}`} loading="lazy"/><span>♡ A favorite moment</span></div>)}</div><button className="primary" onClick={next}>Continue →</button></>:step===7?<><div className="eyebrow">A WISH FOR YOUR YEAR</div><h1>Make a wish. <em>Dream big.</em></h1><button type="button" className={`bloom ${bloom?'open':''}`} onClick={()=>BL(true)} aria-label="Tap to make a wish"><span className="flower">{bloom?'🌸':'🌷'}</span>{bloom&&Array.from({length:10},(_,i)=><i key={i} style={{'--a':`${i*36}deg`} as React.CSSProperties}>♥</i>)}</button>{bloom?<><div className="constellation">✦<span>·</span>♡<span>✧</span>✦</div><p>May this year bring you gentle days, unexpected joy, and everything your heart is hoping for.</p><button className="primary" onClick={next}>One last thing ♥</button></>:<p>Close your eyes, make a wish, then tap the flower to let it bloom.</p>}</>:<><div className="finalicon">♥</div><div className="eyebrow">TODAY IS ALL ABOUT YOU</div><h1>Happy Birthday! <em>♥</em></h1><p>May your day be as wonderful as the happiness you bring to the people around you.</p><div className="finaldate">{new Date(d.date+'T12:00:00').toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})}</div><div className="constellation">✦　♡　✧　♥　✦</div><button className="primary" onClick={()=>{BL(false);S(0)}}>Replay the surprise ↻</button></>}</div>{step===last&&<div className="hearts" aria-hidden="true">{Array.from({length:18},(_,i)=><i key={i} style={{left:`${(i*37)%100}%`,animationDelay:`${(i%6)*.7}s`,fontSize:`${12+(i%4)*6}px`}}>{i%3?'♥':'✦'}</i>)}</div>}<footer>CRAFTED WITH <span>♥</span> JUST FOR YOU</footer></main>}
+import { useEffect, useState, useRef } from 'react';
+import { AnimatePresence, motion, MotionConfig } from 'framer-motion';
+import { EASE_OUT, EASE_INOUT } from '@/lib/motion';
+import { useTimeouts, useIsMobile } from '@/lib/hooks';
+import { makeRng } from '@/lib/random';
+import { Backdrop } from '@/components/recipient/Backdrop';
+import { SceneCard } from '@/components/recipient/SceneCard';
+import { ChapterOverlay } from '@/components/recipient/ChapterOverlay';
+import { PasswordScreen } from '@/components/recipient/PasswordScreen';
+import { CakeScene } from '@/components/recipient/CakeScene';
+import { DateScene } from '@/components/recipient/DateScene';
+import { NameScene } from '@/components/recipient/NameScene';
+import { MessageScene } from '@/components/recipient/MessageScene';
+import { BalloonScene } from '@/components/recipient/BalloonScene';
+import { LetterScene } from '@/components/recipient/LetterScene';
+import { GalleryScene } from '@/components/recipient/GalleryScene';
+import { FinalScene } from '@/components/recipient/FinalScene';
+
+type Data = {
+  date: string;
+  recipientName: string;
+  messages: string[];
+  letter: string;
+  wishes: string[];
+  photos: { id: string; ext: string }[];
+};
+
+export default function Birthday({ params }: { params: Promise<{ id: string }> }) {
+  const [id, setId] = useState('');
+  const [data, setData] = useState<Data | null>(null);
+  const [step, setStep] = useState(-1);
+  const [err, setErr] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState(false);
+  const [candlesExtinguished, setCandlesExtinguished] = useState<number[]>([]);
+  const [poppedBalloons, setPoppedBalloons] = useState<number[]>([]);
+  const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
+  const [chapterTransition, setChapterTransition] = useState<string | null>(null);
+
+  const { later, clearAll } = useTimeouts();
+  const isMobile = useIsMobile();
+  const allCandlesOutRef = useRef(false);
+
+  useEffect(() => {
+    params.then(p => setId(p.id));
+  }, [params]);
+
+  useEffect(() => {
+    if (!id) return;
+    fetch(`/api/experience/${id}`)
+      .then(r => (r.ok ? r.json() : Promise.reject()))
+      .then(setData)
+      .catch(() => setErr(true));
+  }, [id]);
+
+  const checkPassword = async () => {
+    try {
+      const r = await fetch(`/api/experience/${id}/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: passwordInput }),
+      });
+      if (r.ok) {
+        setPasswordError(false);
+        setChapterTransition('Chapter 01: Your Special Day');
+        later(() => {
+          setChapterTransition(null);
+          setStep(0);
+        }, 2000);
+      } else {
+        setPasswordError(true);
+        const input = document.querySelector('.recipient .field input') as HTMLElement;
+        if (input) input.classList.add('shake');
+        later(() => input?.classList.remove('shake'), 500);
+      }
+    } catch {
+      setPasswordError(true);
+    }
+  };
+
+  const extinguishCandle = (index: number) => {
+    setCandlesExtinguished(prev => {
+      if (prev.includes(index)) return prev;
+      const newExtinguished = [...prev, index];
+      if (newExtinguished.length === 4) {
+        allCandlesOutRef.current = true;
+      }
+      return newExtinguished;
+    });
+  };
+
+  const popBalloon = (index: number) => {
+    setPoppedBalloons(prev => {
+      if (prev.includes(index)) return prev;
+      return [...prev, index];
+    });
+  };
+
+  const showChapter = (title: string, nextStep: number) => {
+    setChapterTransition(title);
+    later(() => {
+      setChapterTransition(null);
+      setStep(nextStep);
+    }, 2000);
+  };
+
+  const resetJourney = () => {
+    clearAll();
+    setStep(0);
+    setCandlesExtinguished([]);
+    setPoppedBalloons([]);
+    setLightboxPhoto(null);
+    setChapterTransition(null);
+    allCandlesOutRef.current = false;
+  };
+
+  if (err) {
+    return (
+      <main className="recipient">
+        <Backdrop step={step} />
+        <SceneCard>
+          <div className="heroheart">♡</div>
+          <h1>Oh, this link wandered off.</h1>
+          <p>This birthday surprise may have expired or the link may be incorrect.</p>
+        </SceneCard>
+      </main>
+    );
+  }
+
+  if (!data) {
+    return (
+      <main className="recipient">
+        <Backdrop step={step} />
+        <SceneCard>
+          <div className="loading">♥<p>Unwrapping a little surprise…</p></div>
+        </SceneCard>
+      </main>
+    );
+  }
+
+  const sceneVariants = {
+    initial: { opacity: 0, y: 16 },
+    animate: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE_OUT } },
+    exit: { opacity: 0, y: -12, transition: { duration: 0.35, ease: EASE_INOUT } },
+  };
+
+  return (
+    <MotionConfig reducedMotion="user">
+      <main className="recipient">
+        <Backdrop step={step} />
+        <ChapterOverlay chapterTransition={chapterTransition} step={step} />
+        <div className="recipientbar">
+          <span className="brand">
+            <span className="brandmark">♥</span> bloom<span className="brandlight">day</span>
+          </span>
+          <span>{step >= 0 ? 'MADE JUST FOR YOU' : 'A LITTLE SURPRISE'} <b>♥</b></span>
+        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step}
+            variants={sceneVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            <SceneCard>
+              {step === -1 && (
+                <PasswordScreen
+                  recipientName={data.recipientName}
+                  passwordError={passwordError}
+                  onPasswordChange={setPasswordInput}
+                  onPasswordSubmit={checkPassword}
+                />
+              )}
+              {step === 0 && (
+                <CakeScene
+                  candlesExtinguished={candlesExtinguished}
+                  onExtinguishCandle={extinguishCandle}
+                  onNext={() => {
+                    setChapterTransition('Chapter 02: A Few Things I Want To Say');
+                    later(() => {
+                      setChapterTransition(null);
+                      setStep(1);
+                    }, 2000);
+                  }}
+                />
+              )}
+              {step === 1 && (
+                <DateScene
+                  date={data.date}
+                  onNext={() => showChapter('Chapter 03: Just For You', 2)}
+                />
+              )}
+              {step === 2 && (
+                <NameScene
+                  recipientName={data.recipientName}
+                  onNext={() => showChapter('Chapter 04: A Few Things I Want To Say', 3)}
+                />
+              )}
+              {step === 3 && (
+                <MessageScene
+                  message={data.messages[0]}
+                  messageIndex={0}
+                  onNext={() => setStep(4)}
+                />
+              )}
+              {step === 4 && (
+                <MessageScene
+                  message={data.messages[1]}
+                  messageIndex={1}
+                  onNext={() => setStep(5)}
+                />
+              )}
+              {step === 5 && (
+                <MessageScene
+                  message={data.messages[2]}
+                  messageIndex={2}
+                  onNext={() => setStep(6)}
+                />
+              )}
+              {step === 6 && (
+                <MessageScene
+                  message={data.messages[3]}
+                  messageIndex={3}
+                  onNext={() => showChapter('Chapter 05: Make A Wish', 7)}
+                />
+              )}
+              {step === 7 && (
+                <BalloonScene
+                  wishes={data.wishes}
+                  poppedBalloons={poppedBalloons}
+                  onPopBalloon={popBalloon}
+                  onNext={() => showChapter('Chapter 06: From The Heart', 8)}
+                />
+              )}
+              {step === 8 && (
+                <LetterScene
+                  letter={data.letter}
+                  onNext={() => showChapter('Chapter 07: Our Memories', 9)}
+                />
+              )}
+              {step === 9 && (
+                <GalleryScene
+                  photos={data.photos}
+                  onPhotoClick={setLightboxPhoto}
+                  onNext={() => showChapter('Chapter 08: One Last Surprise', 10)}
+                />
+              )}
+              {step === 10 && (
+                <FinalScene
+                  recipientName={data.recipientName}
+                  onReplay={resetJourney}
+                />
+              )}
+            </SceneCard>
+          </motion.div>
+        </AnimatePresence>
+        {lightboxPhoto && (
+          <div className="lightbox" onClick={() => setLightboxPhoto(null)}>
+            <img src={lightboxPhoto} alt="Memory" className="lightbox-image" />
+            <button className="lightbox-close">×</button>
+          </div>
+        )}
+      </main>
+    </MotionConfig>
+  );
+}
