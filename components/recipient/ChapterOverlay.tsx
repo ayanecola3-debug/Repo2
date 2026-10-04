@@ -4,13 +4,13 @@ import { EASE_OUT } from '@/lib/motion';
 
 interface ChapterOverlayProps {
   chapterTransition: string | null;
-  step: number;
 }
 
-export function ChapterOverlay({ chapterTransition, step }: ChapterOverlayProps) {
+export function ChapterOverlay({ chapterTransition }: ChapterOverlayProps) {
   if (!chapterTransition) return null;
 
-  const [number, title] = chapterTransition.split(':');
+  const [rawNumber, title] = chapterTransition.split(':');
+  const kicker = (rawNumber || 'CHAPTER').trim().toUpperCase();
 
   return (
     <motion.div
@@ -18,30 +18,31 @@ export function ChapterOverlay({ chapterTransition, step }: ChapterOverlayProps)
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.5, ease: EASE_OUT }}
+      transition={{ duration: 0.45, ease: EASE_OUT }}
     >
-      <div className="chapter-content">
+      <motion.div className="chapter-glow" initial={{ opacity: 0 }} animate={{ opacity: 1 }} />
+      <div className="chapter-content" style={{ position: 'relative', textAlign: 'center', padding: 24 }}>
         <motion.div
-          className="chapter-number"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.3 }}
-          transition={{ duration: 0.3 }}
+          className="chapter-kicker"
+          initial={{ opacity: 0, letterSpacing: '0.7em' }}
+          animate={{ opacity: 0.75, letterSpacing: '0.42em' }}
+          transition={{ duration: 0.8, ease: EASE_OUT }}
         >
-          0{step + 1}
+          {kicker}
         </motion.div>
         <motion.div
           className="chapter-title"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.15, ease: EASE_OUT }}
+          initial={{ opacity: 0, y: 18, letterSpacing: '0.12em' }}
+          animate={{ opacity: 1, y: 0, letterSpacing: '0.02em' }}
+          transition={{ duration: 0.7, delay: 0.2, ease: EASE_OUT }}
         >
-          {title}
+          {(title || '').trim()}
         </motion.div>
         <motion.div
           className="chapter-line"
-          initial={{ scaleX: 0 }}
-          animate={{ scaleX: 1 }}
-          transition={{ duration: 0.4, delay: 0.3, ease: EASE_OUT }}
+          initial={{ scaleX: 0, opacity: 0 }}
+          animate={{ scaleX: 1, opacity: 1 }}
+          transition={{ duration: 0.55, delay: 0.45, ease: EASE_OUT }}
         />
       </div>
     </motion.div>

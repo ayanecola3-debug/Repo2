@@ -1,8 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { motion, useReducedMotion, useAnimation } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { EASE_OUT } from '@/lib/motion';
-import { makeRng } from '@/lib/random';
 
 interface LetterPaperProps {
   letter: string;
@@ -16,19 +15,17 @@ export function LetterPaper({ letter, onComplete }: LetterPaperProps) {
   const [showSignature, setShowSignature] = useState(false);
   const [showContinue, setShowContinue] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const controls = useAnimation();
 
-  // Split letter into words, preserving newlines
-  const words = letter.split(/(\s+)/).filter(w => w.trim() || w === '\n');
-  const wordCount = words.length;
-  const delayPerWord = Math.min(0.08, 7 / wordCount);
+  const letters = Array.from(letter);
+  const letterCount = letters.length;
+  const delayPerLetter = 0.026;
 
   // Candlelight flicker values
   const flickerValues = Array.from({ length: 8 }, () => 0.5 + Math.random() * 0.15);
 
   useEffect(() => {
-    if (skipped || isReducedMotion) {
-      setRevealedCount(wordCount);
+    if (skipped) {
+      setRevealedCount(letterCount);
       later(() => {
         setShowSignature(true);
         later(() => {
@@ -38,24 +35,23 @@ export function LetterPaper({ letter, onComplete }: LetterPaperProps) {
       return;
     }
 
-    if (revealedCount < wordCount) {
+    if (revealedCount < letterCount) {
       const timer = setTimeout(() => {
         setRevealedCount(prev => {
           const next = prev + 1;
-          // Auto-scroll every ~10 words
-          if (next % 10 === 0 && containerRef.current) {
+          if (next % 40 === 0 && containerRef.current) {
             containerRef.current.scrollTop = containerRef.current.scrollHeight;
           }
           return next;
         });
-      }, delayPerWord * 1000);
+      }, delayPerLetter * 1000);
       return () => clearTimeout(timer);
     } else {
       // All words revealed
       later(() => setShowSignature(true), 500);
       later(() => setShowContinue(true), 2000);
     }
-  }, [revealedCount, wordCount, delayPerWord, skipped, isReducedMotion]);
+  }, [revealedCount, letterCount, delayPerLetter, skipped]);
 
   const later = (fn: () => void, ms: number) => {
     const timer = setTimeout(fn, ms);
@@ -63,7 +59,7 @@ export function LetterPaper({ letter, onComplete }: LetterPaperProps) {
   };
 
   const handleTap = () => {
-    if (!skipped && !isReducedMotion && revealedCount < wordCount) {
+    if (!skipped && revealedCount < letterCount) {
       setSkipped(true);
     }
   };
@@ -106,7 +102,7 @@ export function LetterPaper({ letter, onComplete }: LetterPaperProps) {
           overflowY: 'auto',
           boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
           position: 'relative',
-          cursor: skipped || isReducedMotion ? 'default' : 'pointer',
+          cursor: skipped || revealedCount >= letterCount ? 'default' : 'pointer',
           fontFamily: 'var(--font-hand)',
           fontSize: 'clamp(20px, 5vw, 24px)',
           lineHeight: 1.5,
@@ -126,20 +122,20 @@ export function LetterPaper({ letter, onComplete }: LetterPaperProps) {
           }}
         />
 
-        {words.map((word, i) => (
+        {letters.map((letter, i) => (
           <motion.span
             key={i}
             initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: skipped || isReducedMotion || i < revealedCount ? 1 : 0, y: skipped || isReducedMotion || i < revealedCount ? 0 : 4 }}
-            transition={{ duration: 0.3, ease: EASE_OUT }}
-            style={{ display: 'inline', whiteSpace: word === '\n' ? 'pre' : 'normal' }}
+            animate={{ opacity: skipped || i < revealedCount ? 1 : 0, y: skipped || i < revealedCount ? 0 : 4 }}
+            transition={{ duration: 0.18, ease: EASE_OUT }}
+            style={{ display: 'inline', whiteSpace: letter === '\n' ? 'pre' : 'pre-wrap' }}
           >
-            {word}
+            {letter}
           </motion.span>
         ))}
 
         {/* Blinking caret */}
-        {!skipped && !isReducedMotion && revealedCount < wordCount && (
+        {!skipped && revealedCount < letterCount && (
           <motion.span
             animate={{ opacity: [1, 0, 1] }}
             transition={{ duration: 0.8, repeat: Infinity }}
@@ -187,6 +183,7 @@ export function LetterPaper({ letter, onComplete }: LetterPaperProps) {
       {showContinue && (
         <motion.button
           className="primary"
+          data-testid="continue"
           onClick={onComplete}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { EASE_OUT, EASE_INOUT } from '@/lib/motion';
 import { useTimeouts } from '@/lib/hooks';
+import { Button } from '@/components/ui/Button';
+import { Eyebrow } from '@/components/ui/Eyebrow';
 import { AnimatedName } from './AnimatedName';
 
 interface NameSceneProps {
@@ -26,7 +28,7 @@ export function NameScene({ recipientName, onNext }: NameSceneProps) {
     later(() => {
       setShowSubtitle(true);
       later(() => setShowButton(true), 600);
-    }, underlineDelay);
+    }, underlineDelay * 1000);
   }, [recipientName]);
 
   const handleClick = () => {
@@ -41,21 +43,20 @@ export function NameScene({ recipientName, onNext }: NameSceneProps) {
   };
 
   return (
-    <>
-      <motion.div
-        className="eyebrow"
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: EASE_OUT }}
-      >
-        FOR YOU
-      </motion.div>
+    <div className="name-wall-scene">
+      <div className="name-heart-wall" aria-hidden>
+        {Array.from({ length: 16 }, (_, i) => (
+          <span key={i}>❤</span>
+        ))}
+      </div>
+      <Eyebrow>FOR YOU</Eyebrow>
       <div style={{ position: 'relative', display: 'inline-block' }}>
         <AnimatedName
           name={recipientName}
           delay={0.4}
           loop={!clicked}
           exit={exitName}
+          outline
           onExited={handleExited}
         />
       </div>
@@ -70,26 +71,10 @@ export function NameScene({ recipientName, onNext }: NameSceneProps) {
         </motion.p>
       )}
       {showButton && (
-        <motion.button
-          className="primary"
-          onClick={handleClick}
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={isReducedMotion ? { opacity: 1, scale: 1 } : {
-            opacity: 1,
-            scale: [1, 1.03, 1],
-          }}
-          transition={{
-            duration: isReducedMotion ? 0.5 : 2,
-            delay: 0.4,
-            ease: EASE_OUT,
-            repeat: isReducedMotion ? 0 : Infinity,
-            repeatType: 'loop',
-          }}
-          whileHover={!isReducedMotion ? { scale: 1.03 } : {}}
-        >
+        <Button data-testid="continue" onClick={handleClick} guide>
           Open your surprise
-        </motion.button>
+        </Button>
       )}
-    </>
+    </div>
   );
 }

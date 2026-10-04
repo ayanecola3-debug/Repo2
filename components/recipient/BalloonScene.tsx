@@ -4,8 +4,10 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { EASE_OUT, EASE_INOUT, SPRING_SOFT } from '@/lib/motion';
 import { makeRng } from '@/lib/random';
 import { useTimeouts } from '@/lib/hooks';
+import { HeartIcon, SparkleIcon } from '@/components/icons';
 import { Balloon, getBalloonColor } from './Balloon';
 import { PopEffects } from './PopEffects';
+import { useBloomAudio } from './AudioProvider';
 import confetti from 'canvas-confetti';
 
 interface BalloonSceneProps {
@@ -22,6 +24,7 @@ const ROTATIONS = [-4, 3, -2, 4, -3, 2];
 export function BalloonScene({ wishes, poppedBalloons, onPopBalloon, onNext }: BalloonSceneProps) {
   const { later, clearAll } = useTimeouts();
   const isReducedMotion = useReducedMotion();
+  const audio = useBloomAudio();
   const [activeWish, setActiveWish] = useState<{ wish: string; origin: { x: number; y: number } } | null>(null);
   const [showContinue, setShowContinue] = useState(false);
   const [popping, setPopping] = useState(false);
@@ -67,6 +70,7 @@ export function BalloonScene({ wishes, poppedBalloons, onPopBalloon, onNext }: B
 
     later(() => {
       const color = getBalloonColor(index);
+      audio.play('pop');
       const id = ++popId.current;
       setPops(prev => [...prev, { id, x: origin.x, y: origin.y, color: color.base, seed: index }]);
 
@@ -108,7 +112,7 @@ export function BalloonScene({ wishes, poppedBalloons, onPopBalloon, onNext }: B
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: EASE_OUT }}
       >
-        BALLOON WISHES
+        SIX LITTLE WISHES
       </motion.div>
       <motion.h1
         initial={{ opacity: 0 }}
@@ -116,18 +120,19 @@ export function BalloonScene({ wishes, poppedBalloons, onPopBalloon, onNext }: B
         transition={{ duration: 0.5, delay: 0.2, ease: EASE_OUT }}
         style={{ fontSize: 'clamp(24px, 5vw, 32px)', fontWeight: 500, fontFamily: 'Playfair Display, serif', marginBottom: '24px' }}
       >
-        Pop a balloon to reveal a wish
+        Pop each shining balloon to reveal a wish
       </motion.h1>
 
       <div
         style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'space-evenly',
-          alignItems: 'flex-end',
-          minHeight: count > 6 ? '280px' : '220px',
-          gap: '4px',
+          display: 'grid',
+          gridTemplateColumns: count <= 4 ? 'repeat(2, minmax(82px, 1fr))' : 'repeat(3, minmax(72px, 1fr))',
+          justifyItems: 'center',
+          alignItems: 'end',
+          minHeight: count > 4 ? '310px' : '235px',
+          gap: '16px 12px',
           position: 'relative',
+          padding: '4px 4px 0',
         }}
       >
         {pops.map(pop => (
@@ -270,15 +275,7 @@ export function BalloonScene({ wishes, poppedBalloons, onPopBalloon, onNext }: B
               >
                 {activeWish.wish}
               </div>
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="#e0527e"
-                style={{ marginTop: '16px' }}
-              >
-                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-              </svg>
+              <HeartIcon size={22} />
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -301,6 +298,7 @@ export function BalloonScene({ wishes, poppedBalloons, onPopBalloon, onNext }: B
         {showContinue && (
           <motion.button
             className="primary"
+            data-testid="continue"
             onClick={onNext}
             initial={{ opacity: 0 }}
             animate={!isReducedMotion ? {
@@ -316,7 +314,13 @@ export function BalloonScene({ wishes, poppedBalloons, onPopBalloon, onNext }: B
             }}
             style={{ marginTop: '24px' }}
           >
-            {allPopped ? 'All wishes found ♥ ' : 'Continue '}
+            {allPopped ? (
+              <>
+                All wishes found <SparkleIcon size={14} />
+              </>
+            ) : (
+              'Continue'
+            )}
             <motion.span
               animate={!isReducedMotion ? { x: [0, 3, 0] } : {}}
               transition={!isReducedMotion ? { duration: 1.8, repeat: Infinity, ease: EASE_INOUT } : {}}

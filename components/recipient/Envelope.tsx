@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { EASE_OUT } from '@/lib/motion';
 import { useTimeouts } from '@/lib/hooks';
+import { useBloomAudio } from './AudioProvider';
 
 interface EnvelopeProps {
   onOpenStart?: () => void;
@@ -11,6 +12,7 @@ interface EnvelopeProps {
 
 export function Envelope({ onOpenStart, onOpened }: EnvelopeProps) {
   const { later } = useTimeouts();
+  const audio = useBloomAudio();
   const [busy, setBusy] = useState(false);
   const [sealGone, setSealGone] = useState(false);
   const [flapRotate, setFlapRotate] = useState(0);
@@ -21,6 +23,7 @@ export function Envelope({ onOpenStart, onOpened }: EnvelopeProps) {
   const handleOpen = () => {
     if (busy) return;
     setBusy(true);
+    audio.play('rustle');
     onOpenStart?.();
     setSealGone(true);
 
@@ -40,33 +43,17 @@ export function Envelope({ onOpenStart, onOpened }: EnvelopeProps) {
     <motion.div
       animate={dropped ? { y: 40, opacity: 0.25 } : { y: 0, opacity: 1 }}
       transition={{ duration: 0.5, ease: EASE_OUT }}
-      style={{
-        position: 'relative',
-        width: 'min(78vw, 320px)',
-        margin: '0 auto',
-      }}
+      className="real-envelope-wrap"
     >
       {/* 60% of envelope height (aspect 3/2 ⇒ 40% of width) so the open flap is not clipped */}
       <div aria-hidden style={{ paddingTop: '40%' }} />
 
       <div
-        style={{
-          position: 'relative',
-          width: '100%',
-          aspectRatio: '3 / 2',
-          perspective: '900px',
-        }}
+        className="real-envelope"
       >
         {/* z-1 back panel */}
         <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            zIndex: -1,
-            background: 'linear-gradient(135deg, #f7dbe3 0%, #f0c3d0 100%)',
-            borderRadius: '6px',
-            boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.08)',
-          }}
+          className="real-envelope-back"
         />
 
         {/* z2 small paper — sits under the pocket so it emerges from inside */}
@@ -78,9 +65,9 @@ export function Envelope({ onOpenStart, onOpened }: EnvelopeProps) {
             width: '88%',
             height: '70%',
             zIndex: 2,
-            background: '#fffdf8',
-            borderRadius: '2px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            background: 'linear-gradient(180deg, #fffdf7, #f5eadf)',
+            borderRadius: '6px',
+            boxShadow: '0 8px 24px rgba(74, 30, 43, 0.22)',
           }}
           animate={{ y: paperY, rotate: paperY < 0 ? 1 : 0 }}
           transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
@@ -102,14 +89,7 @@ export function Envelope({ onOpenStart, onOpened }: EnvelopeProps) {
 
         {/* z3 front pocket */}
         <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            zIndex: 3,
-            background: 'linear-gradient(135deg, #fcebf0 0%, #f8e1e7 100%)',
-            clipPath: 'polygon(0 0, 50% 58%, 100% 0, 100% 100%, 0 100%)',
-            borderRadius: '6px',
-          }}
+          className="real-envelope-pocket"
         >
           <div
             style={{
@@ -162,30 +142,18 @@ export function Envelope({ onOpenStart, onOpened }: EnvelopeProps) {
               inset: 0,
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
-              background: 'linear-gradient(135deg, #fcebf0 0%, #f8e1e7 100%)',
+              background: 'linear-gradient(145deg, #fff1f5 0%, #edbdcb 100%)',
               clipPath: 'polygon(0 0, 100% 0, 50% 100%)',
-              borderRadius: '6px 6px 0 0',
+              borderRadius: '12px 12px 0 0',
+              boxShadow: 'inset 0 8px 18px rgba(255,255,255,0.62)',
             }}
           >
             <motion.div
-              style={{
-                position: 'absolute',
-                left: '50%',
-                top: '58%',
-                transform: 'translate(-50%, -50%)',
-                width: '34px',
-                height: '34px',
-                background: 'linear-gradient(135deg, #8a2a4a 0%, #641a30 100%)',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-              }}
+              className="real-envelope-seal"
               animate={sealGone ? { scale: 0, opacity: 0 } : { scale: 1, opacity: 1 }}
               transition={{ duration: 0.3 }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="#fcebf0">
+              <svg width="27" height="27" viewBox="0 0 24 24" fill="#ff2f2f">
                 <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
               </svg>
             </motion.div>
@@ -223,6 +191,7 @@ export function Envelope({ onOpenStart, onOpened }: EnvelopeProps) {
           <motion.button
             onClick={handleOpen}
             aria-label="Open the envelope"
+            data-testid="envelope-open"
             style={{
               position: 'absolute',
               inset: 0,

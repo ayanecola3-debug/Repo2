@@ -1,11 +1,12 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { formatName } from '@/lib/formatName';
 import { useTimeouts } from '@/lib/hooks';
 import { AnimatedName } from './AnimatedName';
 import { ConstellationCanvas, ConstellationCanvasRef } from './ConstellationCanvas';
 import { Petals } from './Petals';
+import { useBloomAudio } from './AudioProvider';
 import confetti from 'canvas-confetti';
 import gsap from 'gsap';
 
@@ -17,6 +18,7 @@ interface FinalSceneProps {
 export function FinalScene({ recipientName, onReplay }: FinalSceneProps) {
   const isReducedMotion = useReducedMotion();
   const { later, clearAll } = useTimeouts();
+  const audio = useBloomAudio();
   const canvasRef = useRef<ConstellationCanvasRef>(null);
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const startedRef = useRef(false);
@@ -84,6 +86,33 @@ export function FinalScene({ recipientName, onReplay }: FinalSceneProps) {
           // Optional heart shapes; circles/stars already fired.
         }
       }, i * 500);
+    });
+  };
+
+  const triggerRandomFirework = () => {
+    const origin = {
+      x: 0.14 + Math.random() * 0.72,
+      y: 0.12 + Math.random() * 0.42,
+    };
+    const colors = [
+      ['#ffffff', '#ffd166', '#ff6b8f'],
+      ['#f5c26b', '#e0527e', '#ffffff'],
+      ['#ff9db2', '#ffffff', '#b98cff'],
+    ][Math.floor(Math.random() * 3)];
+
+    confetti({
+      particleCount: 42,
+      spread: 96,
+      startVelocity: 34,
+      decay: 0.91,
+      gravity: 0.55,
+      scalar: 0.9,
+      ticks: 220,
+      colors,
+      shapes: ['circle', 'star'],
+      zIndex: 4,
+      origin,
+      disableForReducedMotion: true,
     });
   };
 
@@ -158,7 +187,10 @@ export function FinalScene({ recipientName, onReplay }: FinalSceneProps) {
       duration: 0.4,
       ease: 'power2.in',
     }, 'pulse+=0.4');
-    tl.call(() => setShowPetals(true), undefined, 'pulse');
+    tl.call(() => {
+      audio.play('swell');
+      setShowPetals(true);
+    }, undefined, 'pulse');
 
     tl.call(() => {
       console.log('Star 0 after travel:', { x: stars[0].x, y: stars[0].y, tx: stars[0].tx, ty: stars[0].ty });
@@ -174,12 +206,13 @@ export function FinalScene({ recipientName, onReplay }: FinalSceneProps) {
   };
 
   const handleSkip = () => {
-    if (skipped || isReducedMotion || phase >= 3) return;
+    if (skipped || isReducedMotion || phase >= 7) return;
     setSkipped(true);
     setShowSkipHint(false);
-    timelineRef.current?.seek('name');
-    setPhase(3);
+    timelineRef.current?.seek('replay');
+    setPhase(7);
     setShowPetals(true);
+    triggerFireworks();
   };
 
   const handleReplay = () => {
@@ -198,7 +231,14 @@ export function FinalScene({ recipientName, onReplay }: FinalSceneProps) {
     }
     setShowSkipHint(true);
     const hintTimer = setTimeout(() => setShowSkipHint(false), 5000);
-    return () => clearTimeout(hintTimer);
+    const replayFallback = setTimeout(() => {
+      setPhase(prev => Math.max(prev, 7));
+      triggerFireworks();
+    }, 12500);
+    return () => {
+      clearTimeout(hintTimer);
+      clearTimeout(replayFallback);
+    };
   }, [isReducedMotion]);
 
   useEffect(() => {
@@ -218,6 +258,24 @@ export function FinalScene({ recipientName, onReplay }: FinalSceneProps) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- teardown only
   }, []);
+
+  useEffect(() => {
+    if (isReducedMotion || phase < 6) return;
+
+    let active = true;
+    const schedule = () => {
+      later(() => {
+        if (!active) return;
+        triggerRandomFirework();
+        schedule();
+      }, 900 + Math.random() * 1200);
+    };
+
+    schedule();
+    return () => {
+      active = false;
+    };
+  }, [phase, isReducedMotion]);
 
   return (
     <div
@@ -291,13 +349,20 @@ export function FinalScene({ recipientName, onReplay }: FinalSceneProps) {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
+            className="final-name-heart"
             style={{ textAlign: 'center', zIndex: 10 }}
           >
+            <div className="final-heart-symbols" aria-hidden>
+              {Array.from({ length: 42 }, (_, i) => (
+                <span key={i} style={{ '--i': i } as CSSProperties}>❤</span>
+              ))}
+            </div>
             <AnimatedName
               name={recipientName}
               size="clamp(32px, 8vw, 56px)"
               delay={0}
               loop={true}
+              outline
             />
           </motion.div>
         )}
@@ -360,6 +425,7 @@ export function FinalScene({ recipientName, onReplay }: FinalSceneProps) {
         {phase >= 7 && (
           <motion.button
             className="primary"
+            data-testid="replay"
             onClick={(e) => {
               e.stopPropagation();
               handleReplay();

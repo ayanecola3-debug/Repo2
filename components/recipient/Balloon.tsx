@@ -8,12 +8,12 @@ interface BalloonProps {
 }
 
 const PALETTE = [
-  { base: '#f0628f', light: '#f8a5c0', dark: '#c4406e' },
-  { base: '#ff8a73', light: '#ffbca9', dark: '#e85a45' },
-  { base: '#b69cf0', light: '#d4c2f7', dark: '#8a6ad4' },
-  { base: '#7ed6b2', light: '#b2ebd6', dark: '#4db688' },
-  { base: '#f5c26b', light: '#f9de9c', dark: '#d49a3d' },
-  { base: '#7cc4f0', light: '#b2dcf7', dark: '#4a9ad8' },
+  { base: '#d81745', light: '#ff6b8f', dark: '#8c001f' },
+  { base: '#ef456a', light: '#ff9db2', dark: '#b30a35' },
+  { base: '#a90028', light: '#f04a70', dark: '#650016' },
+  { base: '#f05278', light: '#ffacc0', dark: '#bd143d' },
+  { base: '#c60033', light: '#ff5f82', dark: '#78001c' },
+  { base: '#e1365d', light: '#ff91aa', dark: '#971130' },
 ];
 
 export function Balloon({ color, size, id }: BalloonProps) {
@@ -31,11 +31,22 @@ export function Balloon({ color, size, id }: BalloonProps) {
           <stop offset="50%" stopColor={color.base} />
           <stop offset="100%" stopColor={color.dark} />
         </radialGradient>
+        <filter id={`${gradId}-shadow`} x="-30%" y="-20%" width="160%" height="170%">
+          <feDropShadow dx="0" dy="8" stdDeviation="5" floodColor="#7c1028" floodOpacity="0.24" />
+        </filter>
       </defs>
       {/* Body */}
       <path
         d="M50 4 C78 4 96 26 96 52 C96 80 72 104 50 108 C28 104 4 80 4 52 C4 26 22 4 50 4 Z"
         fill={`url(#${gradId})`}
+        filter={`url(#${gradId}-shadow)`}
+      />
+      <path
+        d="M18 75 C27 100 72 104 87 67"
+        stroke="rgba(255,255,255,0.24)"
+        strokeWidth="2"
+        fill="none"
+        strokeLinecap="round"
       />
       {/* Highlight */}
       <ellipse
@@ -46,6 +57,15 @@ export function Balloon({ color, size, id }: BalloonProps) {
         fill="white"
         opacity="0.45"
         transform="rotate(-25, 28, 32)"
+      />
+      <ellipse
+        cx="35"
+        cy="22"
+        rx="13"
+        ry="8"
+        fill="white"
+        opacity="0.16"
+        transform="rotate(-18, 35, 22)"
       />
       {/* Knot */}
       <path

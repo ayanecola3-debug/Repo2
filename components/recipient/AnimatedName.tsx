@@ -11,6 +11,7 @@ interface AnimatedNameProps {
   delay?: number;
   loop?: boolean;
   exit?: boolean;
+  outline?: boolean;
   onExited?: () => void;
 }
 
@@ -20,6 +21,7 @@ export function AnimatedName({
   delay = 0,
   loop = true,
   exit = false,
+  outline = false,
   onExited,
 }: AnimatedNameProps) {
   const isReducedMotion = useReducedMotion();
@@ -49,12 +51,11 @@ export function AnimatedName({
   useEffect(() => {
     if (!exit && !isReducedMotion) {
       const lastLetterDelay = delay + (letters.length - 1) * STAGGER + 0.8;
-      later(() => setShowUnderline(true), lastLetterDelay);
+      later(() => setShowUnderline(true), (lastLetterDelay) * 1000);
     }
   }, [exit, letters.length, delay, isReducedMotion]);
 
   const words = name.toUpperCase().split(' ');
-  const letterIndexRef = useRef(0);
 
   const handleExit = () => {
     if (hasExitedRef.current) return;
@@ -63,7 +64,7 @@ export function AnimatedName({
     clearAll();
     later(() => {
       onExited?.();
-    }, 0.35 + letters.length * 0.04);
+    }, (0.35 + letters.length * 0.04) * 1000);
   };
 
   useEffect(() => {
@@ -110,10 +111,11 @@ export function AnimatedName({
         {words.map((word, wordIdx) => (
           <div key={wordIdx} style={{ display: 'inline-flex', whiteSpace: 'nowrap' }}>
             {Array.from(word).map((letter, letterIdx) => {
-              const globalIdx = letterIndexRef.current++;
+              const globalIdx = words.slice(0, wordIdx).join('').length + letterIdx;
               return (
                 <motion.span
                   key={`${wordIdx}-${letterIdx}`}
+                  className={outline ? 'animated-name-outline' : undefined}
                   style={{ display: 'inline-block' }}
                   initial={
                     isReducedMotion
